@@ -97,7 +97,7 @@ with left:
         intro=st.text_area('Introducción','We look forward to welcoming you. Discover how our All-Inclusive meal plan can enhance your upcoming stay.' if ai else 'We look forward to welcoming you. Arrange your airport transfer before arrival.')
     with st.expander('All Inclusive',expanded=ai):
         ai_title=st.text_input('Título All Inclusive','All-Inclusive in Paradise')
-        ai_desc=st.text_area('Descripción All Inclusive','From leisurely meals to relaxing moments by the pool, make more of your Cabo getaway with our All-Inclusive meal plan.')
+        ai_desc=st.text_area('Descripción All Inclusive','Enjoy your favorite meals, sip a refreshing cocktail by the pool, and make the most of your vacation with our All-Inclusive plan.')
         defaults=['Domestic Bar | Full domestic bar service at all resort bars, from 7:00 AM to 11:00 PM.', 'Daily Mini-Bar | 8 sodas, 4 bottles of water, 6 domestic beers and 2 coffee kits daily.', '30% OFF | Room Service', '20% OFF | Saltwater Spa', 'Complimentary Wellness Access | Free access to our gym and Saltwater Spa wet areas.']
         selected=[]
         for i,benefit in enumerate(defaults):
@@ -112,7 +112,7 @@ with left:
         tr_desc=st.text_area('Descripción transporte','Arrange your private airport transfer before arrival.')
         one=st.number_input('One way desde USD',min_value=0.0,value=149.0,step=1.0)
         round_price=st.number_input('Round trip USD',min_value=0.0,value=267.0,step=1.0)
-        savings=st.checkbox('Mostrar ahorro viaje redondo',True)
+        savings=st.checkbox('Mostrar ahorro viaje redondo',false)
         tr_terms=st.text_area('Condiciones transporte','Up to 5 passengers. Advance booking of at least 72 hours required.')
         tr_button=st.text_input('Botón transporte','Request transportation')
     images={}
