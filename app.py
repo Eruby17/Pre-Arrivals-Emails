@@ -118,7 +118,7 @@ with left:
             up=st.file_uploader(label,type=['jpg','jpeg','png','webp'],key='up_'+k)
             url=st.text_input('URL HTTPS · '+label,key='url_'+k)
             images[k]=get_image(k,up,url)
-    d=dict(preheader=preheader,ai=ai,transport=tr,gallery=gallery,tr_photo=tr_photo,ai_benefits=ai_benefits,email=email,name=name,reservation=reservation,arrival=arrival,subject=subject,headline=headline,intro=intro,ai_title=ai_title,ai_desc=ai_desc,ai_price=ai_price,ai_terms=ai_terms,ai_button=ai_button,tr_title=tr_title,tr_desc=tr_desc,one=one,round=round_price,savings=savings,tr_terms=tr_terms,tr_button=tr_button)
+    d=dict(preheader=preheader,ai=ai,transport=tr,gallery=gallery,tr_photo=tr_photo,ai_benefits=ai_benefits,email=email,name=name,reservation=reservation,arrival=arrival,subject=subject,headline=headline,intro=intro,ai_title=ai_title,ai_desc=ai_desc,ai_price=ai_price,ai_terms=ai_terms,ai_button=ai_button,tr_title=tr_title,tr_desc=tr_desc,one=one,round=round_price,tr_terms=tr_terms,tr_button=tr_button)
     valid=bool(re.fullmatch(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+',email)) and '\n' not in subject and '\r' not in subject
     if not valid: st.error('Revisa el correo de contacto y el asunto.')
     if not (ai or tr): st.warning('Selecciona al menos un servicio.')
