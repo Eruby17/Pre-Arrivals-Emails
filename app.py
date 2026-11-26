@@ -1,6 +1,6 @@
 import base64, html, re
 from pathlib import Path
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse, quote
 import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image
@@ -29,6 +29,13 @@ def get_image(key, upload, url):
         except Exception: st.warning(f'Imagen de {key} inválida; se usará la original.')
     return ('bytes',(ROOT/'assets'/f'{key}.jpg').read_bytes())
 
+def request_links(email, reservation, service):
+    subject=f'{service} | Reservation {reservation}'
+    body=f'Hello Casa Dorada Reservations,\nI am interested in {service}.\nReservation: {reservation}\nThank you.'
+    mailto='mailto:'+quote(email.strip(),safe='@.+-_')+'?'+urlencode({'subject':subject,'body':body},quote_via=quote)
+    gmail='https://mail.google.com/mail/?'+urlencode({'view':'cm','fs':'1','to':email.strip(),'su':subject,'body':body},quote_via=quote)
+    return mailto,gmail
+
 def build(d, images, mode='html'):
     used=set()
     def image(key, alt, width=600):
@@ -36,10 +43,15 @@ def build(d, images, mode='html'):
         src=val if kind=='url' else ('cid:'+key+'@casadorada.local' if mode=='eml' else 'data:image/jpeg;base64,'+base64.b64encode(val).decode())
         return f'<img src="{esc(src)}" alt="{esc(alt)}" width="{width}" style="display:block;width:100%;max-width:{width}px;height:auto;border:0;">'
     def cta(label,service,secondary=False):
-        link='mailto:'+d['email']+'?'+urlencode({'subject':f'{service} | Reservation {d["reservation"]}','body':f'Hello Casa Dorada Reservations,\nI am interested in {service}.\nReservation: {d["reservation"]}\nThank you.'}).replace('+','%20')
+        mailto,gmail=request_links(d['email'],d['reservation'],service)
+        link=gmail if d.get('action_mode')=='Gmail web' else mailto
+        alternate=mailto if link==gmail else gmail
+        alternate_label='Use your email app' if link==gmail else 'Open in Gmail'
+        fallback=f'<p style="font-size:12px;margin:8px 0 0;color:#52606a;"><a href="{esc(alternate)}" target="_blank" style="color:{NAVY};text-decoration:underline;">{alternate_label}</a></p>'
         if secondary:
-            return f'<p style="margin:12px 0 0;"><a href="{esc(link)}" style="color:{NAVY};font-size:14px;font-weight:bold;text-decoration:underline;">{esc(label)} &rarr;</a></p>'
-        return f'<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td bgcolor="{NAVY}" style="border-radius:4px;"><a href="{esc(link)}" style="display:inline-block;padding:15px 24px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">{esc(label)}</a></td></tr></table>'
+            return f'<p style="margin:12px 0 0;"><a href="{esc(link)}" target="_blank" style="color:{NAVY};font-size:14px;font-weight:bold;text-decoration:underline;">{esc(label)} &rarr;</a></p>'+fallback
+        return f'<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td bgcolor="{NAVY}" style="border-radius:4px;mso-padding-alt:15px 24px;"><a href="{esc(link)}" target="_blank" style="display:inline-block;padding:15px 24px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">{esc(label)}</a></td></tr></table>'+fallback
+
     def block(content,bg='#ffffff',padding='26px'):
         return f'<tr><td bgcolor="{bg}" style="padding:{padding};text-align:center;font-family:Arial,sans-serif;color:#243445;font-size:16px;line-height:1.55;">{content}</td></tr>'
     def heading(s): return f'<h2 style="font-family:Georgia,serif;font-weight:normal;font-size:29px;line-height:1.2;color:{NAVY};margin:8px 0 15px;">{esc(s)}</h2>'
@@ -56,7 +68,7 @@ def build(d, images, mode='html'):
             title,sep,desc=v.partition('|')
             if not sep: title,desc=v,''
             cards.append(f'<td class="benefit" width="50%" valign="top" bgcolor="{SAND}" style="padding:14px;text-align:center;"><strong style="font-family:Georgia,serif;font-size:{24 if "%" in title else 18}px;color:{NAVY};">{esc(title.strip())}</strong><p style="font-size:13px;line-height:1.5;margin:6px 0 0;">{esc(desc.strip())}</p></td>')
-        benefit_html=('<p style="font-size:11px;letter-spacing:2px;color:#806841;margin:24px 0 8px;">MORE THAN JUST A MEAL PLAN</p>'+heading('Discover your All-Inclusive privileges')+'<table role="presentation" width="100%" cellspacing="6" cellpadding="0">'+''.join('<tr>'+''.join(cards[i:i+2])+('<td></td>' if i+1==len(cards) else '')+'</tr>' for i in range(0,len(cards),2))+'</table>') if cards else ''
+        benefit_html=('<p style="font-size:11px;letter-spacing:2px;color:#806841;margin:24px 0 8px;">MORE THAN JUST A MEAL PLAN</p>'+heading('Discover your All-Inclusive privileges')+'<table role="presentation" width="100%" cellspacing="6" cellpadding="0" style="table-layout:fixed;">'+''.join('<tr>'+''.join(cards[i:i+2])+('<td></td>' if i+1==len(cards) else '')+'</tr>' for i in range(0,len(cards),2))+'</table>') if cards else ''
         gallery_html = ('<table role="presentation" width="100%" cellspacing="4"><tr>'+''.join(f'<td width="33%" valign="middle">{image(k,a,180)}</td>' for k,a in [('burger','Burger'),('pizza','Pizza'),('dining','Dining')])+'</tr></table>') if d['gallery'] else ''
         rows+=block('<p style="font-size:11px;letter-spacing:3px;color:#806841;margin:0;">DINE &nbsp;·&nbsp; RELAX &nbsp;·&nbsp; ENJOY</p>'+f'<h1 style="font:normal 36px/1.15 Georgia,serif;color:{NAVY};margin:12px 0;">{esc(d["ai_title"])}</h1><p>{paragraphs(d["ai_desc"])}</p>'+gallery_html+benefit_html+f'<p style="font:normal 44px/1.1 Georgia,serif;color:{NAVY};margin:24px 0 4px;">${d["ai_price"]:,.2f} <span style="font-size:18px;">USD</span></p><p style="font-size:14px;margin:0 0 20px;">Per adult, per night</p>'+cta(d['ai_button'],'All-Inclusive')+small(d['ai_terms']),padding='32px 28px')
     if d['transport']:
@@ -79,6 +91,7 @@ with st.sidebar:
     gallery=st.checkbox('Galería gastronómica',True)
     tr_photo=st.checkbox('Foto pequeña de transportación',True)
     email=st.text_input('Correo de contacto','reservations@casadorada.com')
+    action_mode=st.radio('Destino del botón principal',['Aplicación de correo','Gmail web'],help='La aplicación de correo usa mailto; Gmail web requiere una cuenta de Gmail. Ambos enlaces se incluyen en el correo.')
     st.caption('Los botones abren un correo dirigido a reservaciones; no generan solicitudes ni cobran automáticamente.')
 left,right=st.columns([1,1.15])
 with left:
@@ -95,7 +108,7 @@ with left:
     with st.expander('All Inclusive',expanded=ai):
         ai_title=st.text_input('Título All Inclusive','All-Inclusive in Paradise')
         ai_desc=st.text_area('Descripción All Inclusive','Savor every moment at Casa Dorada with exceptional dining, refreshing cocktails, and exclusive benefits throughout your stay.')
-        defaults=['Domestic Bar | Full domestic bar service at all resort bars, from 7:00 AM to 11:00 PM.', 'Daily Mini-Bar | 8 sodas, 4 bottles of water, 6 domestic beers and 2 coffee kits daily.', '30% OFF | Room Service', '20% OFF | Saltwater Spa', 'Complimentary Wellness Access | Free access to our gym and Saltwater Spa wet areas.']
+        defaults=['Domestic Bar | Full domestic bar service at all resort bars, from 7:00 AM to 11:00 PM.', 'Daily Mini-Bar | 8 sodas, 4 bottles of water, 6 domestic beers and 2 coffee kits daily.', '30% OFF | Room Service', '20% OFF | Saltwater Spa', 'Complimentary Wellness Access | Free access to our gym and Saltwater Spa wet areas.', 'Breakfast, Lunch & Dinner | Enjoy breakfast, lunch and dinner during your stay.']
         selected=[]
         for i,benefit in enumerate(defaults):
             if st.checkbox('Incluir '+benefit.split('|')[0].strip(),True,key=f'benefit_on_{i}'):
@@ -118,7 +131,7 @@ with left:
             up=st.file_uploader(label,type=['jpg','jpeg','png','webp'],key='up_'+k)
             url=st.text_input('URL HTTPS · '+label,key='url_'+k)
             images[k]=get_image(k,up,url)
-    d=dict(preheader=preheader,ai=ai,transport=tr,gallery=gallery,tr_photo=tr_photo,ai_benefits=ai_benefits,email=email,name=name,reservation=reservation,arrival=arrival,subject=subject,headline=headline,intro=intro,ai_title=ai_title,ai_desc=ai_desc,ai_price=ai_price,ai_terms=ai_terms,ai_button=ai_button,tr_title=tr_title,tr_desc=tr_desc,one=one,round=round_price,tr_terms=tr_terms,tr_button=tr_button)
+    d=dict(action_mode=action_mode,preheader=preheader,ai=ai,transport=tr,gallery=gallery,tr_photo=tr_photo,ai_benefits=ai_benefits,email=email,name=name,reservation=reservation,arrival=arrival,subject=subject,headline=headline,intro=intro,ai_title=ai_title,ai_desc=ai_desc,ai_price=ai_price,ai_terms=ai_terms,ai_button=ai_button,tr_title=tr_title,tr_desc=tr_desc,one=one,round=round_price,tr_terms=tr_terms,tr_button=tr_button)
     valid=bool(re.fullmatch(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+',email)) and '\n' not in subject and '\r' not in subject
     if not valid: st.error('Revisa el correo de contacto y el asunto.')
     if not (ai or tr): st.warning('Selecciona al menos un servicio.')
@@ -164,4 +177,11 @@ with right:
     st.subheader('Vista previa')
     device=st.radio('Pantalla',['Escritorio','Móvil'],horizontal=True)
     components.html('<div style="margin:auto;max-width:'+('375px' if device=='Móvil' else '600px')+'">'+page+'</div>',height=1550,scrolling=True)
+    st.caption('Prueba los enlaces fuera de la vista previa: el navegador puede bloquear mailto dentro del iframe.')
+    if valid:
+        for service,enabled in [('All-Inclusive',ai),('Private Transportation',tr)]:
+            if enabled:
+                mailto,gmail=request_links(email,reservation,service)
+                st.markdown(f'[{service} · aplicación de correo]({mailto})')
+                st.link_button(f'{service} · abrir Gmail',gmail)
     with st.expander('Código HTML'): st.code(page,language='html')
