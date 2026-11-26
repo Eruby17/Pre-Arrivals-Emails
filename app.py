@@ -112,7 +112,6 @@ with left:
         tr_desc=st.text_area('Descripción transporte','Arrange your private airport transfer before arrival.')
         one=st.number_input('One way desde USD',min_value=0.0,value=149.0,step=1.0)
         round_price=st.number_input('Round trip USD',min_value=0.0,value=267.0,step=1.0)
-        savings=st.checkbox('Mostrar ahorro viaje redondo',false)
         tr_terms=st.text_area('Condiciones transporte','Up to 5 passengers. Advance booking of at least 72 hours required.')
         tr_button=st.text_input('Botón transporte','Request transportation')
     images={}
