@@ -45,7 +45,7 @@ def build(d, images, mode='html'):
     def heading(s): return f'<h2 style="font-family:Georgia,serif;font-weight:normal;font-size:29px;line-height:1.2;color:{NAVY};margin:8px 0 15px;">{esc(s)}</h2>'
     def price(s): return f'<p style="font-size:27px;color:{NAVY};font-weight:bold;margin:12px 0;">{esc(s)}</p>'
     def small(s): return f'<p style="font-size:12px;color:#52606a;margin:16px 0 0;">{paragraphs(s)}</p>'
-    rows=block(f'<table role="presentation" align="center" width="165"><tr><td>{image("logo","Casa Dorada",165)}</td></tr></table>',padding='18px')
+    rows=block(f'<table role="presentation" align="center" width="260"><tr><td>{image("logo","Casa Dorada",260)}</td></tr></table>',padding='18px')
     if d['ai']:
         rows+=block(image('pool','Relax and enjoy your stay at Casa Dorada'),padding='0')
     rows+=block('<p style="font-size:11px;letter-spacing:2px;color:#806841;margin:0 0 8px;">YOUR VACATION STARTS HERE</p>'+heading(d['headline'])+f'<p style="margin:8px 0;">Dear {esc(d["name"] or "Guest")}, {paragraphs(d["intro"])}</p>'+ (small('Reservation: '+d['reservation']+' | Arrival: '+d['arrival']) if d['reservation'] or d['arrival'] else ''),SAND,'22px 28px')
@@ -60,16 +60,17 @@ def build(d, images, mode='html'):
         rows+=block('<p style="font-size:11px;letter-spacing:3px;color:#806841;margin:0;">DINE &nbsp;·&nbsp; RELAX &nbsp;·&nbsp; ENJOY</p>'+f'<h1 style="font:normal 36px/1.15 Georgia,serif;color:{NAVY};margin:12px 0;">{esc(d["ai_title"])}</h1><p>{paragraphs(d["ai_desc"])}</p>'+benefit_html+f'<p style="font:normal 44px/1.1 Georgia,serif;color:{NAVY};margin:24px 0 4px;">${d["ai_price"]:,.2f} <span style="font-size:18px;">USD</span></p><p style="font-size:14px;margin:0 0 20px;">Per adult, per night</p>'+cta(d['ai_button'],'All-Inclusive')+small(d['ai_terms']),padding='32px 28px')
         if d['gallery']:
             rows+=block('<table role="presentation" width="100%" cellspacing="4"><tr>'+''.join(f'<td width="33%" valign="middle">{image(k,a,180)}</td>' for k,a in [('burger','Burger'),('pizza','Pizza'),('dining','Dining')])+'</tr></table>',padding='0 14px 24px')
+    if d['transport']:
         if d['ai']:
-            thumb=f'<td width="112" valign="middle" style="padding-right:14px;">{image("transport","Private transportation",100)}</td>' if d['tr_photo'] else ''
+            thumb=f'<td class="transport-photo" width="234" valign="middle" style="padding-right:14px;">{image("transport","Private transportation",220)}</td>' if d['tr_photo'] else ''
             detail=f'<p style="font-size:11px;letter-spacing:1.5px;color:#806841;margin:0 0 5px;">ALSO AVAILABLE</p><h2 style="font:normal 21px Georgia,serif;color:{NAVY};margin:0 0 8px;">{esc(d["tr_title"])}</h2><p style="font-size:13px;line-height:1.5;margin:0 0 8px;">{paragraphs(d["tr_desc"])}</p><p style="font-size:14px;line-height:1.5;margin:0;"><strong>One way:</strong> from {money(d["one"])}<br><strong>Round trip:</strong> {money(d["round"])}</p>'
             detail+=cta(d['tr_button'],'Private Transportation',True)+small(d['tr_terms'])
-            rows+=block(f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>{thumb}<td valign="middle" style="text-align:left;">{detail}</td></tr></table>',SAND,'20px')
+            rows+=block(f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>{thumb}<td class="transport-detail" valign="middle" style="text-align:left;">{detail}</td></tr></table>',SAND,'20px')
         else:
             if d['tr_photo']: rows+=block(image('transport','Private transportation'),padding='0')
-            rows+=block(heading(d['tr_title'])+f'<p>{paragraphs(d["tr_desc"])}</p><p>One way: from <strong>{money(d["one"])}</strong><br>Round trip: <strong>{money(d["round"])}</strong></p>'+ cta(d['tr_button'],'Private Transportation')+small(d['tr_terms']),SAND)
+            rows+=block(heading(d['tr_title'])+f'<p>{paragraphs(d["tr_desc"])}</p><p>One way: from <strong>{money(d["one"])}</strong><br>Round trip: <strong>{money(d["round"])}</strong></p>'+cta(d['tr_button'],'Private Transportation')+small(d['tr_terms']),SAND)
     rows+=f'<tr><td bgcolor="{NAVY}" style="padding:26px;text-align:center;font:15px Arial,sans-serif;color:#ffffff;line-height:1.6;">We look forward to welcoming you.<br><strong>Casa Dorada Reservations Team</strong><br><a style="color:#ffffff;" href="mailto:{esc(d["email"])}">{esc(d["email"])}</a></td></tr>'
-    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(d['subject'])+'</title><style>@media only screen and (max-width:480px){.benefit{display:block!important;width:auto!important;margin-bottom:6px;}}</style></head><body style="margin:0;padding:0;background:#eef0f2;"><div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;">'+esc(d['preheader'])+'</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#eef0f2"><tr><td align="center"><table role="presentation" width="600" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="width:100%;max-width:600px;margin:auto;">'+rows+'</table></td></tr></table></body></html>',used
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(d['subject'])+'</title><style>@media only screen and (max-width:480px){.benefit{display:block!important;width:auto!important;margin-bottom:6px;}.transport-photo,.transport-detail{display:block!important;width:auto!important;padding-right:0!important;}.transport-photo{padding-bottom:14px!important;}.transport-photo img{margin:auto!important;}}</style></head><body style="margin:0;padding:0;background:#eef0f2;"><div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;">'+esc(d['preheader'])+'</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#eef0f2"><tr><td align="center"><table role="presentation" width="600" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="width:100%;max-width:600px;margin:auto;">'+rows+'</table></td></tr></table></body></html>',used
 
 st.title('Casa Dorada · Email Studio')
 st.caption('Generador de correos Pre-Arrival | All Inclusive protagonista')
@@ -94,7 +95,7 @@ with left:
         intro=st.text_area('Introducción','We look forward to welcoming you. Discover how our All-Inclusive meal plan can enhance your upcoming stay.' if ai else 'We look forward to welcoming you. Arrange your airport transfer before arrival.')
     with st.expander('All Inclusive',expanded=ai):
         ai_title=st.text_input('Título All Inclusive','All-Inclusive in Paradise')
-        ai_desc=st.text_area('Descripción All Inclusive','Enjoy your favorite meals, sip a refreshing cocktail by the pool, and make the most of your vacation with our All-Inclusive plan.')
+        ai_desc=st.text_area('Descripción All Inclusive','From leisurely meals to relaxing moments by the pool, make more of your Cabo getaway with our All-Inclusive meal plan.')
         defaults=['Domestic Bar | Full domestic bar service at all resort bars, from 7:00 AM to 11:00 PM.', 'Daily Mini-Bar | 8 sodas, 4 bottles of water, 6 domestic beers and 2 coffee kits daily.', '30% OFF | Room Service', '20% OFF | Saltwater Spa', 'Complimentary Wellness Access | Free access to our gym and Saltwater Spa wet areas.']
         selected=[]
         for i,benefit in enumerate(defaults):
