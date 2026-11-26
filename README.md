@@ -1,0 +1,4 @@
+# Casa Dorada Email Studio V4
+Deploy app.py with gmail_auth.py, requirements.txt and assets/ in the same repository. Do not commit secrets.
+
+In Streamlit Secrets reuse the quotation app's [auth] configuration (Google OIDC), with a new cookie_secret and redirect_uri = "https://YOUR-APP.streamlit.app/oauth2callback". Reuse [google_oauth] client_id and client_secret and set redirect_uri = "https://YOUR-APP.streamlit.app/". Register both exact URLs in Google Cloud for their respective OAuth clients. Gmail API must be enabled and users must be authorized. No Supabase required. Gmail authorization is kept in the active session, so reconnect after session loss. Authorize Gmail before filling the form, as redirects may reset inputs. Only drafts are created; send manually from Gmail. Test using your own account first. External URLs are not compressed or included in the weight indicator. Preview text and mobile layout depend on email client.
