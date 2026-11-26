@@ -57,9 +57,8 @@ def build(d, images, mode='html'):
             if not sep: title,desc=v,''
             cards.append(f'<td class="benefit" width="50%" valign="top" bgcolor="{SAND}" style="padding:14px;text-align:center;"><strong style="font-family:Georgia,serif;font-size:{24 if "%" in title else 18}px;color:{NAVY};">{esc(title.strip())}</strong><p style="font-size:13px;line-height:1.5;margin:6px 0 0;">{esc(desc.strip())}</p></td>')
         benefit_html=('<p style="font-size:11px;letter-spacing:2px;color:#806841;margin:24px 0 8px;">MORE THAN JUST A MEAL PLAN</p>'+heading('Discover your All-Inclusive privileges')+'<table role="presentation" width="100%" cellspacing="6" cellpadding="0">'+''.join('<tr>'+''.join(cards[i:i+2])+('<td></td>' if i+1==len(cards) else '')+'</tr>' for i in range(0,len(cards),2))+'</table>') if cards else ''
-        rows+=block('<p style="font-size:11px;letter-spacing:3px;color:#806841;margin:0;">DINE &nbsp;·&nbsp; RELAX &nbsp;·&nbsp; ENJOY</p>'+f'<h1 style="font:normal 36px/1.15 Georgia,serif;color:{NAVY};margin:12px 0;">{esc(d["ai_title"])}</h1><p>{paragraphs(d["ai_desc"])}</p>'+benefit_html+f'<p style="font:normal 44px/1.1 Georgia,serif;color:{NAVY};margin:24px 0 4px;">${d["ai_price"]:,.2f} <span style="font-size:18px;">USD</span></p><p style="font-size:14px;margin:0 0 20px;">Per adult, per night</p>'+cta(d['ai_button'],'All-Inclusive')+small(d['ai_terms']),padding='32px 28px')
-        if d['gallery']:
-            rows+=block('<table role="presentation" width="100%" cellspacing="4"><tr>'+''.join(f'<td width="33%" valign="middle">{image(k,a,180)}</td>' for k,a in [('burger','Burger'),('pizza','Pizza'),('dining','Dining')])+'</tr></table>',padding='0 14px 24px')
+        gallery_html = ('<table role="presentation" width="100%" cellspacing="4"><tr>'+''.join(f'<td width="33%" valign="middle">{image(k,a,180)}</td>' for k,a in [('burger','Burger'),('pizza','Pizza'),('dining','Dining')])+'</tr></table>') if d['gallery'] else ''
+        rows+=block('<p style="font-size:11px;letter-spacing:3px;color:#806841;margin:0;">DINE &nbsp;·&nbsp; RELAX &nbsp;·&nbsp; ENJOY</p>'+f'<h1 style="font:normal 36px/1.15 Georgia,serif;color:{NAVY};margin:12px 0;">{esc(d["ai_title"])}</h1><p>{paragraphs(d["ai_desc"])}</p>'+gallery_html+benefit_html+f'<p style="font:normal 44px/1.1 Georgia,serif;color:{NAVY};margin:24px 0 4px;">${d["ai_price"]:,.2f} <span style="font-size:18px;">USD</span></p><p style="font-size:14px;margin:0 0 20px;">Per adult, per night</p>'+cta(d['ai_button'],'All-Inclusive')+small(d['ai_terms']),padding='32px 28px')
     if d['transport']:
         if d['ai']:
             thumb=f'<td class="transport-photo" width="234" valign="middle" style="padding-right:14px;">{image("transport","Private transportation",220)}</td>' if d['tr_photo'] else ''
@@ -95,7 +94,7 @@ with left:
         intro=st.text_area('Introducción','We look forward to welcoming you. Discover how our All-Inclusive meal plan can enhance your upcoming stay.' if ai else 'We look forward to welcoming you. Arrange your airport transfer before arrival.')
     with st.expander('All Inclusive',expanded=ai):
         ai_title=st.text_input('Título All Inclusive','All-Inclusive in Paradise')
-        ai_desc=st.text_area('Descripción All Inclusive','From leisurely meals to relaxing moments by the pool, make more of your Cabo getaway with our All-Inclusive meal plan.')
+        ai_desc=st.text_area('Descripción All Inclusive','Savor every moment at Casa Dorada with exceptional dining, refreshing cocktails, and exclusive benefits throughout your stay.')
         defaults=['Domestic Bar | Full domestic bar service at all resort bars, from 7:00 AM to 11:00 PM.', 'Daily Mini-Bar | 8 sodas, 4 bottles of water, 6 domestic beers and 2 coffee kits daily.', '30% OFF | Room Service', '20% OFF | Saltwater Spa', 'Complimentary Wellness Access | Free access to our gym and Saltwater Spa wet areas.']
         selected=[]
         for i,benefit in enumerate(defaults):
