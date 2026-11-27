@@ -36,7 +36,7 @@ def get_image(key, url):
 def request_links(email, reservation, service):
     subject=f'{service} | Reservation {reservation}'
     body=f'Hello Casa Dorada Reservations,\nI am interested in {service}.\nReservation: {reservation}\nThank you.'
-    mailto='mailto:'+quote(email.strip(),safe='@.+-_')+'?'+urlencode({'subject':subject,'body':body},quote_via=quote)
+    mailto = f"mailto:{email.strip()}"
     gmail='https://mail.google.com/mail/?'+urlencode({'view':'cm','fs':'1','to':email.strip(),'su':subject,'body':body},quote_via=quote)
     return mailto,gmail
 
