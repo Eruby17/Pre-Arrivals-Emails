@@ -1,37 +1,37 @@
-import base64, html, re
-from pathlib import Path
+import html, re
 from urllib.parse import urlencode, urlparse, quote
 import streamlit as st
 import streamlit.components.v1 as components
-from PIL import Image
-from io import BytesIO
 from email.message import EmailMessage
 from email import policy
-from email.utils import formataddr, make_msgid
+from email.utils import formataddr
 from gmail_auth import sidebar, create_draft
 
 st.set_page_config(page_title='Casa Dorada | Email Studio',layout='wide')
 gmail_email=sidebar()
-ROOT=Path(__file__).parent
 NAVY='#092b63'; SAND='#f7f4ee'
 
 def esc(s): return html.escape(str(s),quote=True)
 def paragraphs(s): return esc(s).replace('\n','<br>')
 def money(v): return f'${v:,.2f} USD'
-def get_image(key, upload, url):
+IMAGE_BASE = 'https://raw.githubusercontent.com/Eruby17/Pre-Arrivals-Emails/main/assets/'
+DEFAULT_IMAGES = {
+    'logo': IMAGE_BASE + 'logo.jpg',
+    'pool': IMAGE_BASE + 'pool.jpg',
+    'burger': IMAGE_BASE + 'burger.jpg',
+    'pizza': IMAGE_BASE + 'pizza.jpg',
+    'dining': IMAGE_BASE + 'dining.jpg',
+    'transport': IMAGE_BASE + 'transport.jpg',
+}
+
+def get_image(key, url):
+    default = DEFAULT_IMAGES[key]
     if url.strip():
-        u=urlparse(url.strip())
-        if u.scheme=='https' and u.netloc: return ('url',url.strip())
-        st.warning(f'URL de {key} inválida; se usará una imagen local.')
-    if upload:
-        try:
-            im=Image.open(upload).convert('RGB'); im.thumbnail((1200,1200)); b=BytesIO(); im.save(b,format='JPEG',quality=85); return ('bytes',b.getvalue())
-        except Exception: st.warning(f'Imagen de {key} inválida; se usará la original.')
-    path=ROOT/'assets'/f'{key}.jpg'
-    if not path.is_file():
-        st.error(f'Falta assets/{key}.jpg. Sube una fotografía o introduce una URL HTTPS.')
-        st.stop()
-    return ('bytes',path.read_bytes())
+        u = urlparse(url.strip())
+        if u.scheme == 'https' and u.netloc:
+            return ('url', url.strip())
+        st.warning(f'URL de {key} inválida; se usará la imagen de GitHub.')
+    return ('url', default)
 
 def request_links(email, reservation, service):
     subject=f'{service} | Reservation {reservation}'
@@ -40,11 +40,11 @@ def request_links(email, reservation, service):
     gmail='https://mail.google.com/mail/?'+urlencode({'view':'cm','fs':'1','to':email.strip(),'su':subject,'body':body},quote_via=quote)
     return mailto,gmail
 
-def build(d, images, mode='html', cids=None):
+def build(d, images, mode='html'):
     used=set()
     def image(key, alt, width=600):
         used.add(key); kind,val=images[key]
-        src=val if kind=='url' else ('cid:'+cids[key][1:-1] if mode=='eml' else 'data:image/jpeg;base64,'+base64.b64encode(val).decode())
+        src=val
         return f'<img src="{esc(src)}" alt="{esc(alt)}" width="{width}" style="display:block;width:100%;max-width:{width}px;height:auto;border:0;">'
     def cta(label,service,secondary=False):
         mailto,gmail=request_links(d['email'],d['reservation'],service)
@@ -127,35 +127,20 @@ with left:
         tr_button=st.text_input('Botón transporte','Request transportation')
     images={}
     with st.expander('Fotografías y logo'):
-        st.caption('Usa las fotos originales incluidas, sube una nueva o indica una URL HTTPS pública. La URL tiene prioridad.')
-        for k,label in [('logo','Logo'),('pool','All Inclusive / piscina'),('burger','Galería 1'),('pizza','Galería 2'),('dining','Galería 3'),('transport','Transportación')]:
-            up=st.file_uploader(label,type=['jpg','jpeg','png','webp'],key='up_'+k)
-            url=st.text_input('URL HTTPS · '+label,key='url_'+k)
-            images[k]=get_image(k,up,url)
+        st.caption('Las fotografías se cargan automáticamente desde GitHub. Puedes sustituir cualquiera por otra URL HTTPS pública. No se adjuntan imágenes CID.')
+        for k,label in [('logo','Logo'),('pool','All Inclusive / piscina'),('burger','Galería 1 / hamburguesa'),('pizza','Galería 2 / pizza'),('dining','Galería 3 / restaurante'),('transport','Transportación')]:
+            url=st.text_input('URL HTTPS · '+label,value=DEFAULT_IMAGES[k],key='url_'+k)
+            images[k]=get_image(k,url)
     d=dict(action_mode=action_mode,preheader=preheader,ai=ai,transport=tr,gallery=gallery,tr_photo=tr_photo,ai_benefits=ai_benefits,email=email,name=name,reservation=reservation,arrival=arrival,subject=subject,headline=headline,intro=intro,ai_title=ai_title,ai_desc=ai_desc,ai_price=ai_price,ai_terms=ai_terms,ai_button=ai_button,tr_title=tr_title,tr_desc=tr_desc,one=one,round=round_price,tr_terms=tr_terms,tr_button=tr_button)
     valid=bool(re.fullmatch(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+',email)) and '\n' not in subject and '\r' not in subject
     if not valid: st.error('Revisa el correo de contacto y el asunto.')
     if not (ai or tr): st.warning('Selecciona al menos un servicio.')
     ready=valid and (ai or tr)
     page,used=build(d,images)
-    # Optimize only the images actually used, including original assets.
-    for k in used:
-        if images[k][0]=='bytes':
-            im=Image.open(BytesIO(images[k][1])).convert('RGB')
-            im.thumbnail((1000 if k=='pool' else 500,1000 if k=='pool' else 500))
-            for quality in (85,75,65,55,45):
-                b=BytesIO(); im.save(b,format='JPEG',quality=quality,optimize=True)
-                if b.tell()<= (180000 if k=='pool' else 60000): break
-            images[k]=('bytes',b.getvalue())
-    embedded_size=sum(len(images[k][1]) for k in used if images[k][0]=='bytes')
-    st.metric('Peso de imágenes incrustadas',f'{embedded_size/1024:.1f} KB')
-    if embedded_size>500*1024: st.warning('Las imágenes superan 500 KB.')
-    if any(images[k][0]=='url' for k in used): st.caption('El peso de imágenes externas no está incluido.')
-    page,used=build(d,images)
+    st.caption('Imágenes externas HTTPS: no se adjuntan al mensaje.')
     st.download_button('Descargar HTML',page,file_name='Casa_Dorada_PreArrival.html',mime='text/html',disabled=not ready)
     if ready:
-        cids={k:make_msgid(domain='casadorada.com') for k in images}
-        eml,used=build(d,images,'eml',cids); msg=EmailMessage(policy=policy.SMTP); msg['Subject']=subject
+        eml,used=build(d,images,'eml'); msg=EmailMessage(policy=policy.SMTP); msg['Subject']=subject
         recipient_valid=bool(re.fullmatch(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+',recipient))
         if recipient_valid: msg['To']=recipient
         if gmail_email: msg['From']=formataddr(('Casa Dorada Reservations',gmail_email))
@@ -164,14 +149,6 @@ with left:
         if tr: plain.extend([tr_title,tr_desc,'One way: from '+money(one),'Round trip: '+money(round_price),tr_terms])
         plain.extend(['To request services, contact '+email,'Casa Dorada Reservations Team'])
         msg.set_content('\n\n'.join(plain)); msg.add_alternative(eml,subtype='html'); part=msg.get_payload()[-1]
-        local_keys=[k for k in sorted(used) if images[k][0]=='bytes']
-        if local_keys:
-            root_cid=make_msgid(domain='casadorada.com')
-            part['Content-ID']=root_cid
-            for k in local_keys:
-                part.add_related(images[k][1],maintype='image',subtype='jpeg',cid=cids[k],disposition='inline',filename=k+'.jpg')
-            part.set_param('type','text/html')
-            part.set_param('start',root_cid)
         st.download_button('Descargar correo .eml',msg.as_bytes(),file_name='Casa_Dorada_PreArrival.eml',mime='message/rfc822')
         if st.button('Crear borrador en Gmail',disabled=not (gmail_email and recipient_valid),type='primary'):
             try:
@@ -180,7 +157,7 @@ with left:
             except Exception:
                 st.error('No se pudo crear el borrador. Revisa la conexión con Gmail antes de reintentar.')
         if not recipient_valid: st.caption('Introduce un correo válido del huésped para crear el borrador.')
-    st.caption('Para enviar desde Gmail usa Crear borrador en Gmail, no copies el HTML de la vista previa. Si Gmail elimina imágenes al editar el borrador, utiliza URLs HTTPS públicas de fotografías autorizadas. EML: para clientes compatibles.')
+    st.caption('Para enviar desde Gmail usa Crear borrador en Gmail, no copies el HTML de la vista previa. Las fotografías utilizan enlaces HTTPS públicos. EML: para clientes compatibles.')
 with right:
     st.subheader('Vista previa')
     device=st.radio('Pantalla',['Escritorio','Móvil'],horizontal=True)
