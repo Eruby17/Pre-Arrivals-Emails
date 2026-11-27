@@ -7,7 +7,7 @@ from PIL import Image
 from io import BytesIO
 from email.message import EmailMessage
 from email import policy
-from email.utils import formataddr
+from email.utils import formataddr, make_msgid
 from gmail_auth import sidebar, create_draft
 
 st.set_page_config(page_title='Casa Dorada | Email Studio',layout='wide')
@@ -27,7 +27,11 @@ def get_image(key, upload, url):
         try:
             im=Image.open(upload).convert('RGB'); im.thumbnail((1200,1200)); b=BytesIO(); im.save(b,format='JPEG',quality=85); return ('bytes',b.getvalue())
         except Exception: st.warning(f'Imagen de {key} inválida; se usará la original.')
-    return ('bytes',(ROOT/'assets'/f'{key}.jpg').read_bytes())
+    path=ROOT/'assets'/f'{key}.jpg'
+    if not path.is_file():
+        st.error(f'Falta assets/{key}.jpg. Sube una fotografía o introduce una URL HTTPS.')
+        st.stop()
+    return ('bytes',path.read_bytes())
 
 def request_links(email, reservation, service):
     subject=f'{service} | Reservation {reservation}'
@@ -36,21 +40,18 @@ def request_links(email, reservation, service):
     gmail='https://mail.google.com/mail/?'+urlencode({'view':'cm','fs':'1','to':email.strip(),'su':subject,'body':body},quote_via=quote)
     return mailto,gmail
 
-def build(d, images, mode='html'):
+def build(d, images, mode='html', cids=None):
     used=set()
     def image(key, alt, width=600):
         used.add(key); kind,val=images[key]
-        src=val if kind=='url' else ('cid:'+key+'@casadorada.local' if mode=='eml' else 'data:image/jpeg;base64,'+base64.b64encode(val).decode())
+        src=val if kind=='url' else ('cid:'+cids[key][1:-1] if mode=='eml' else 'data:image/jpeg;base64,'+base64.b64encode(val).decode())
         return f'<img src="{esc(src)}" alt="{esc(alt)}" width="{width}" style="display:block;width:100%;max-width:{width}px;height:auto;border:0;">'
     def cta(label,service,secondary=False):
         mailto,gmail=request_links(d['email'],d['reservation'],service)
         link=gmail if d.get('action_mode')=='Gmail web' else mailto
-        alternate=mailto if link==gmail else gmail
-        alternate_label='Use your email app' if link==gmail else 'Open in Gmail'
-        fallback=f'<p style="font-size:12px;margin:8px 0 0;color:#52606a;"><a href="{esc(alternate)}" target="_blank" style="color:{NAVY};text-decoration:underline;">{alternate_label}</a></p>'
         if secondary:
-            return f'<p style="margin:12px 0 0;"><a href="{esc(link)}" target="_blank" style="color:{NAVY};font-size:14px;font-weight:bold;text-decoration:underline;">{esc(label)} &rarr;</a></p>'+fallback
-        return f'<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td bgcolor="{NAVY}" style="border-radius:4px;mso-padding-alt:15px 24px;"><a href="{esc(link)}" target="_blank" style="display:inline-block;padding:15px 24px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">{esc(label)}</a></td></tr></table>'+fallback
+            return f'<p style="margin:12px 0 0;"><a href="{esc(link)}" style="color:{NAVY};font-size:14px;font-weight:bold;text-decoration:underline;">{esc(label)} &rarr;</a></p>'
+        return f'<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td bgcolor="{NAVY}" style="border-radius:4px;"><a href="{esc(link)}" style="display:inline-block;border:1px solid {NAVY};border-radius:4px;padding:15px 24px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">{esc(label)}</a></td></tr></table>'
 
     def block(content,bg='#ffffff',padding='26px'):
         return f'<tr><td bgcolor="{bg}" style="padding:{padding};text-align:center;font-family:Arial,sans-serif;color:#243445;font-size:16px;line-height:1.55;">{content}</td></tr>'
@@ -91,7 +92,7 @@ with st.sidebar:
     gallery=st.checkbox('Galería gastronómica',True)
     tr_photo=st.checkbox('Foto pequeña de transportación',True)
     email=st.text_input('Correo de contacto','reservations@casadorada.com')
-    action_mode=st.radio('Destino del botón principal',['Aplicación de correo','Gmail web'],help='La aplicación de correo usa mailto; Gmail web requiere una cuenta de Gmail. Ambos enlaces se incluyen en el correo.')
+    action_mode=st.radio('Destino del botón principal',['Aplicación de correo','Gmail web'],help='La aplicación de correo usa mailto y requiere un cliente configurado. Gmail web requiere una cuenta de Gmail. Solo se incluye el botón elegido.')
     st.caption('Los botones abren un correo dirigido a reservaciones; no generan solicitudes ni cobran automáticamente.')
 left,right=st.columns([1,1.15])
 with left:
@@ -153,7 +154,8 @@ with left:
     page,used=build(d,images)
     st.download_button('Descargar HTML',page,file_name='Casa_Dorada_PreArrival.html',mime='text/html',disabled=not ready)
     if ready:
-        eml,used=build(d,images,'eml'); msg=EmailMessage(policy=policy.SMTP); msg['Subject']=subject
+        cids={k:make_msgid(domain='casadorada.com') for k in images}
+        eml,used=build(d,images,'eml',cids); msg=EmailMessage(policy=policy.SMTP); msg['Subject']=subject
         recipient_valid=bool(re.fullmatch(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+',recipient))
         if recipient_valid: msg['To']=recipient
         if gmail_email: msg['From']=formataddr(('Casa Dorada Reservations',gmail_email))
@@ -162,8 +164,14 @@ with left:
         if tr: plain.extend([tr_title,tr_desc,'One way: from '+money(one),'Round trip: '+money(round_price),tr_terms])
         plain.extend(['To request services, contact '+email,'Casa Dorada Reservations Team'])
         msg.set_content('\n\n'.join(plain)); msg.add_alternative(eml,subtype='html'); part=msg.get_payload()[-1]
-        for k in sorted(used):
-            if images[k][0]=='bytes': part.add_related(images[k][1],maintype='image',subtype='jpeg',cid='<'+k+'@casadorada.local>')
+        local_keys=[k for k in sorted(used) if images[k][0]=='bytes']
+        if local_keys:
+            root_cid=make_msgid(domain='casadorada.com')
+            part['Content-ID']=root_cid
+            for k in local_keys:
+                part.add_related(images[k][1],maintype='image',subtype='jpeg',cid=cids[k],disposition='inline',filename=k+'.jpg')
+            part.set_param('type','text/html')
+            part.set_param('start',root_cid)
         st.download_button('Descargar correo .eml',msg.as_bytes(),file_name='Casa_Dorada_PreArrival.eml',mime='message/rfc822')
         if st.button('Crear borrador en Gmail',disabled=not (gmail_email and recipient_valid),type='primary'):
             try:
@@ -172,16 +180,10 @@ with left:
             except Exception:
                 st.error('No se pudo crear el borrador. Revisa la conexión con Gmail antes de reintentar.')
         if not recipient_valid: st.caption('Introduce un correo válido del huésped para crear el borrador.')
-    st.caption('HTML: abre en navegador y copia el contenido visual a Gmail. Gmail puede eliminar imágenes incrustadas; para ese flujo usa URLs públicas HTTPS autorizadas y verifica con un correo de prueba. EML: para clientes compatibles, no se importa directamente como borrador en Gmail.')
+    st.caption('Para enviar desde Gmail usa Crear borrador en Gmail, no copies el HTML de la vista previa. Si Gmail elimina imágenes al editar el borrador, utiliza URLs HTTPS públicas de fotografías autorizadas. EML: para clientes compatibles.')
 with right:
     st.subheader('Vista previa')
     device=st.radio('Pantalla',['Escritorio','Móvil'],horizontal=True)
     components.html('<div style="margin:auto;max-width:'+('375px' if device=='Móvil' else '600px')+'">'+page+'</div>',height=1550,scrolling=True)
     st.caption('Prueba los enlaces fuera de la vista previa: el navegador puede bloquear mailto dentro del iframe.')
-    if valid:
-        for service,enabled in [('All-Inclusive',ai),('Private Transportation',tr)]:
-            if enabled:
-                mailto,gmail=request_links(email,reservation,service)
-                st.markdown(f'[{service} · aplicación de correo]({mailto})')
-                st.link_button(f'{service} · abrir Gmail',gmail)
     with st.expander('Código HTML'): st.code(page,language='html')
